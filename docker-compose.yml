@@ -15,7 +15,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Контейнер инициализации: создает таблицы и генерирует данные
+  # Контейнер инициализации
   init:
     image: postgres:17
     depends_on:
