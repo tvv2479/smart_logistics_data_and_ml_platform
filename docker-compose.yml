@@ -1,0 +1,82 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-deals_bigdata}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Контейнер инициализации: создает таблицы и генерирует данные
+  init:
+    image: postgres:17
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - ./exercise_materials/sql:/opt/sql:ro
+      - ./sql:/opt/migrations:ro
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        set -e
+        echo "== Создание схемы raw =="
+        psql -h postgres -U postgres -d deals_bigdata -v ON_ERROR_STOP=1 -f /opt/sql/schema.sql
+        
+        echo "== Генерация данных (300 000) =="
+        psql -h postgres -U postgres -d deals_bigdata -v ON_ERROR_STOP=1 -v n_prices=300000 -f /opt/sql/synthetic.sql
+        
+        echo "== Миграции core =="
+        psql -h postgres -U postgres -d deals_bigdata -v ON_ERROR_STOP=1 -f /opt/migrations/core/001_core_tables.sql
+        
+        echo "== Миграции mart =="
+        psql -h postgres -U postgres -d deals_bigdata -v ON_ERROR_STOP=1 -f /opt/migrations/mart/001_dim_cities_dedup.sql
+        psql -h postgres -U postgres -d deals_bigdata -v ON_ERROR_STOP=1 -f /opt/migrations/mart/002_dim_body_group.sql
+        psql -h postgres -U postgres -d deals_bigdata -v ON_ERROR_STOP=1 -f /opt/migrations/mart/003_mart_route_card.sql
+        
+        echo "== Миграции ML =="
+        psql -h postgres -U postgres -d deals_bigdata -v ON_ERROR_STOP=1 -f /opt/migrations/ml/001_ml_price_predictions.sql
+        
+        echo "== Инициализация завершена =="
+
+  # Контейнер ETL
+  etl:
+    build: .
+    depends_on:
+      init:
+        condition: service_completed_successfully
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-deals_bigdata}
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      AS_OF_DATE: "2026-10-26"
+    command: ["python", "-m", "etl.run", "--start-date", "2023-06-01", "--end-date", "2027-03-01"]
+
+  # Контейнер ML
+  ml:
+    build: .
+    depends_on:
+      etl:
+        condition: service_completed_successfully
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGDATABASE: ${POSTGRES_DB:-deals_bigdata}
+      PGUSER: ${POSTGRES_USER:-postgres}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    command: ["python", "-m", "ml.run"]
+
+volumes:
+  pgdata:

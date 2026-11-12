@@ -1,0 +1,12 @@
+# Core ETL
+psycopg[binary]==3.2.3
+python-dotenv==1.0.1
+
+# ML
+catboost>=1.2
+pandas>=2.0
+numpy>=1.26
+scikit-learn>=1.4
+
+# Tests
+pytest==8.3.3

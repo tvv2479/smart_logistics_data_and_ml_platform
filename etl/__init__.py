@@ -1,0 +1,1 @@
+"""ETL-пакет: raw -> core (DQ + currency + categories)."""
