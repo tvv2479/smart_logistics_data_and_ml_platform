@@ -82,6 +82,7 @@ dsn = "postgresql://postgres:postgres@postgres:5432/deals_bigdata"
 | Из `etl`, `ml`, `init` (внутри docker-сети) | `postgres` (имя сервиса) |
 | Из стороннего контейнера в той же сети | `postgres` (имя сервиса) |
 
+---  
 
 ## 1. ETL и Data Quality
 Пайплайн параметризован окном дат и является строго идемпотентным (используется `DELETE` по партиции `loading_date` + `INSERT` внутри одной транзакции).
