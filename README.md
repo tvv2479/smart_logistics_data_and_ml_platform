@@ -40,7 +40,8 @@
 Контейнер с базой данных останется работать в фоне. Для остановки нажмите `Ctrl+C` и выполните `docker compose down`.
 
 ## Подключение к БД для ручной проверки
-Если вы хотите проверить данные руками (через DBeaver, DataGrip, psql или pgAdmin), используйте следующие параметры:
+
+### Из хоста (DBeaver, DataGrip, pgAdmin на вашей машине)
 
 | Параметр | Значение |
 | :--- | :--- |
@@ -50,20 +51,37 @@
 | **User** | `postgres` |
 | **Password** | `postgres` |
 
+Создайте подключение к PostgreSQL и введите параметры. Схемы `core` и `mart` будут доступны сразу после того, как отработают контейнеры `init` и `etl`.
 
-**Вариант 1: Через DBeaver / DataGrip**  
-Создайте новое подключение к PostgreSQL и введите параметры из таблицы выше. Все схемы (`core`, `mart`) и таблицы будут доступны сразу после того, как отработают контейнеры `init` и `etl`.
+### Из терминала (psql через docker compose)
+Подключиться к работающему контейнеру `postgres` из терминала можно одной командой (без указания хоста — psql внутри контейнера использует Unix-сокет):
 
-**Вариант 2: Через терминал (psql внутри контейнера)**  
-Если база уже запущена (например, вы не останавливали `docker compose up`), можно подключиться так:
 ```bash
 docker compose exec postgres psql -U postgres -d deals_bigdata
 ```
 
 Либо выполнить одиночный запрос:
 ```
-docker compose exec postgres psql -U postgres -d deals_bigdata -c "SELECT COUNT(*) FROM mart.ml_price_predictions;"
+docker compose exec postgres psql -U postgres -d deals_bigdata \
+  -c "SELECT COUNT(*) FROM mart.ml_price_predictions;"
 ```
+
+### Из другого контейнера в той же docker-сети
+```
+dsn = "postgresql://postgres:postgres@postgres:5432/deals_bigdata"
+```
+
+---
+
+## Короткая шпаргалка
+
+| Откуда | Host |
+|---|---|
+| С Windows-хоста (DBeaver) | `localhost` |
+| Из `docker compose exec` в контейнере postgres | (не указывать, Unix-сокет) |
+| Из `etl`, `ml`, `init` (внутри docker-сети) | `postgres` (имя сервиса) |
+| Из стороннего контейнера в той же сети | `postgres` (имя сервиса) |
+
 
 ## 1. ETL и Data Quality
 Пайплайн параметризован окном дат и является строго идемпотентным (используется `DELETE` по партиции `loading_date` + `INSERT` внутри одной транзакции).
