@@ -39,7 +39,31 @@
 
 Контейнер с базой данных останется работать в фоне. Для остановки нажмите `Ctrl+C` и выполните `docker compose down`.
 
+## Подключение к БД для ручной проверки
+Если вы хотите проверить данные руками (через DBeaver, DataGrip, psql или pgAdmin), используйте следующие параметры:
 
+| Параметр | Значение |
+| :--- | :--- |
+| **Host** | `localhost` |
+| **Port** | `5432` |
+| **Database** | `deals_bigdata` |
+| **User** | `postgres` |
+| **Password** | `postgres` |
+
+*Значения по умолчанию заданы в `docker-compose.yml` и `.env.example`. Если вы их меняли — подставьте свои.*
+
+**Вариант 1: Через DBeaver / DataGrip**  
+Создайте новое подключение к PostgreSQL и введите параметры из таблицы выше. Все схемы (`core`, `mart`) и таблицы будут доступны сразу после того, как отработают контейнеры `init` и `etl`.
+
+**Вариант 2: Через терминал (psql внутри контейнера)**  
+Если база уже запущена (например, вы не останавливали `docker compose up`), можно подключиться так:
+```bash
+docker compose exec postgres psql -U postgres -d deals_bigdata
+
+Либо выполнить одиночный запрос:
+```
+docker compose exec postgres psql -U postgres -d deals_bigdata -c "SELECT COUNT(*) FROM mart.ml_price_predictions;"
+```
 
 ## 1. ETL и Data Quality
 Пайплайн параметризован окном дат и является строго идемпотентным (используется `DELETE` по партиции `loading_date` + `INSERT` внутри одной транзакции).
